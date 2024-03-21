@@ -1,0 +1,109 @@
+class EnergyRechargeOuter : Actor {
+	default {
+		+NOINTERACTION;
+		+NOGRAVITY;
+		+BRIGHT;
+		Radius 0;
+		Height 0;
+	}
+	
+	override void Tick() {}
+	
+	void TrueTick() {
+		Super.Tick();
+	}
+	
+	states {
+	Spawn:
+		ERUB A 1 A_SetTics(random(35, 70));
+		ERUB BDEFGHIJKLM 3;
+		loop;
+	}
+}
+
+class EnergyRechargeInner : Actor {
+	default {
+		+NOINTERACTION;
+		+NOGRAVITY;
+		+BRIGHT;
+		Radius 0;
+		Height 0;
+	}
+	
+	override void Tick() {}
+	
+	void TrueTick() {
+		Super.Tick();
+	}
+	
+	states {
+	Spawn:
+		ERUN A 1 A_SetTics(random(35, 70));
+		ERUN BCDEFG 2;
+		loop;
+	}
+}
+
+class EnergyRecharge : Inventory
+{
+  default {
+	+COUNTITEM;
+	+INVENTORY.AUTOACTIVATE;
+	+INVENTORY.ALWAYSPICKUP;
+	+INVENTORY.FANCYPICKUPSOUND;
+	+INVENTORY.ALWAYSRESPAWN;
+	+NOGRAVITY;
+	Inventory.PickupMessage "Energy recharge!";
+	Inventory.PickupSound "misc/p_pkup";
+	Inventory.RespawnTics 70;
+	Inventory.MaxAmount 0;
+	Radius 16;
+	Height 32;
+  }
+  
+  private EnergyRechargeInner inner;
+  private EnergyRechargeOuter outer;
+  
+  override void PostBeginPlay() {
+	inner = EnergyRechargeInner(Spawn('EnergyRechargeInner', pos));
+	outer = EnergyRechargeOuter(Spawn('EnergyRechargeOuter', pos));
+  }
+  
+  override void Tick() {
+	Super.Tick();
+	inner.bInvisible = bInvisible;
+	outer.bInvisible = bInvisible;
+	inner.SetOrigin((pos.x, pos.y, pos.z + height / 2 + sin(level.time * 4)), true);
+	outer.SetOrigin((pos.x, pos.y, pos.z + height / 2 + sin(level.time * 4)), true);
+	if (!bInvisible) {
+		A_SpawnParticle(0xFFFFFF, SPF_FULLBRIGHT|SPF_REPLACE, 10, random(8, 16), 0, 0, 0, height / 2, random(-2, 2), random(-2, 2), random(-2, 2));
+	}
+	inner.TrueTick();
+	outer.TrueTick();
+  }
+  
+  override void OnDestroy() {
+	inner.Destroy();
+	outer.Destroy();
+  }
+  
+  override bool Use(bool pickup) {
+	JPlayer jp = JPlayer(owner);
+  
+	if (!jp) {
+		return false;
+	}
+  
+	jp.ResetJump();
+	jp.ResetShift();
+	
+	return true;
+  }
+  
+  states
+  {
+  Spawn:
+    TNT1 A 1;
+    loop;
+  }
+}

@@ -1,0 +1,246 @@
+const SHIFT_TIMER = 35;
+const SHIFT_ACTIVE_TIMER = 6;
+const SHIFT_PREPARE_TIMER = 15;
+const GRAVITY = 1;
+const COYOTE_TIMER = 5;
+
+class JPlayerWallJumpTracer : LineTracer {
+	override ETraceStatus TraceCallback() {
+		if (Results.HitType != TRACE_HitWall) {
+			return TRACE_Skip;
+		}
+		if (!Results.HitLine || ((Results.Tier == TIER_Middle || Results.Tier == TIER_FFloor) && !Results.HitLine.sidedef[Results.Side].GetTexture(1))) {
+			return TRACE_Skip;
+		}
+		return TRACE_Stop;
+	}
+}
+
+class JPlayer : DoomPlayer {
+	default {
+		+NOGRAVITY;
+		+NOFRICTION;
+	
+		Player.ForwardMove 20, 10;
+		Player.SideMove 20, 10;
+		Player.JumpZ 0;
+		Player.ViewBob 0;
+		Player.FlyBob 0;
+	}
+
+	int notOnGroundTimer;
+	int jumpCount;
+	bool jumpComplete;
+	int shiftCount;
+	int shiftTimer;
+	int shiftPrepareTimer;
+	bool shiftComplete;
+	vector3 shiftDirection;
+	float baseShiftFov;
+	bool shouldResetShift;
+	
+	override void PostBeginPlay() {
+		notOnGroundTimer = 0;
+		jumpComplete = true;
+		shiftComplete = true;
+		baseShiftFov = player.FOV;
+		shiftTimer = SHIFT_TIMER + 1;
+		ResetJump();
+		ResetShift();
+		super.PostBeginPlay();
+	}
+	
+	void ResetJump() {
+		if (jumpCount > 1) {
+			jumpCount = 1;
+		}
+	}
+	
+	void ResetShift() {
+		shiftCount = 0;
+		shouldResetShift = true;
+	}
+	
+	private vector3 AnglesToVector(vector3 rawDirection, double angle, double pitch) {
+		return Quat.FromAngles(angle, pitch, 0) * rawDirection;
+	}
+
+	private void CustomCheckJump() {
+		if (!player.onground) {
+			notOnGroundTimer++;
+		} else {
+			notOnGroundTimer = 0;
+		}
+		if (jumpCount < 1 && notOnGroundTimer > COYOTE_TIMER) {
+			jumpCount = 1;
+		}
+		if (!(player.cmd.buttons & BT_JUMP)) {
+			jumpComplete = true;
+		}
+		if (player.cmd.buttons & BT_JUMP && jumpComplete && jumpCount < 2) {
+			jumpCount++;
+			jumpComplete = false;
+			vel.z = 10;
+			if (jumpCount > 1) {
+				A_SetBlend("ff ff 7f", 0.1, 35);
+				for (int i = 0; i < 32; i++) {
+					A_SpawnParticle(random(0xFFFFFF, 0xFFFF7F), SPF_FULLBRIGHT|SPF_REPLACE|SPF_RELVEL, 10, random(8, 16), random(0, 360), 0, 0, 0, frandom(4.5, 5), 0, frandom(0, 1));
+				}
+			}
+		}
+	}
+	
+	private void CustomCheckShift() {
+		int maxShiftPrepareTimer = player.onground ? 1 : SHIFT_PREPARE_TIMER;
+		if (!(player.cmd.buttons & BT_SPEED)) {
+			shiftComplete = true;
+		}
+		if ((shiftComplete || shiftPrepareTimer) && (player.cmd.buttons & BT_SPEED) && shiftTimer >= SHIFT_TIMER && shiftCount < 1) {
+			shiftPrepareTimer++;
+			if (shiftPrepareTimer == 1) {
+				baseShiftFov = player.FOV;
+			}
+			shiftComplete = false;
+		}
+		if ((shiftComplete && shiftPrepareTimer) || shiftPrepareTimer >= maxShiftPrepareTimer) {
+			player.SetFOV(baseShiftFov);
+			shiftTimer = 0;
+			shiftCount++;
+			if (!jumpCount) {
+				jumpCount = 1;
+			}
+			vector3 rawDirection = (player.cmd.forwardmove, -player.cmd.sidemove, 0);
+			if (rawDirection.Length() < 0.0001) {
+				rawDirection = (1, 0, 0);
+			} else {
+				rawDirection = rawDirection.Unit();
+			}
+			if (player.onground) {
+				shiftDirection.x = rawDirection.x * cos(angle) - rawDirection.y * sin(angle);
+				shiftDirection.y = rawDirection.y * cos(angle) + rawDirection.x * sin(angle);
+				shiftDirection.z = 0;
+			} else {
+				shiftDirection = AnglesToVector(rawDirection, angle, pitch);
+			}
+			shiftDirection = shiftDirection.Unit();
+			A_SetBlend("ff ff ff", 0.1, SHIFT_TIMER);
+			shiftPrepareTimer = 0;
+		}
+	}
+
+	void CustomMovePlayer() {
+		if (player.onground) {
+			ResetJump();
+			jumpCount = 0;
+			shiftCount = 0;
+		}
+		
+		if (shiftTimer > SHIFT_ACTIVE_TIMER) {
+			vel.x *= 0.5;
+			vel.y *= 0.5;
+			if (!player.onground) {
+				vel.z -= GRAVITY;
+			} else if (vel.z < 0) {
+				vel.z = 0;
+			}
+		}
+		
+		if (shouldResetShift) {
+			shiftTimer = SHIFT_ACTIVE_TIMER + 1;
+		}
+
+		if (player) {
+			CustomCheckJump();
+			CustomCheckShift();
+		}
+		
+		if (shiftPrepareTimer) {
+			vel *= 0.5;
+		}
+
+		if (shiftTimer <= SHIFT_ACTIVE_TIMER) {
+			float shiftMax = 64;
+			float shiftMin = 8;
+			float shiftFrac = float(shiftTimer) / SHIFT_ACTIVE_TIMER;
+			float shiftCur = shiftMax * (1.0 - shiftFrac) + shiftMin * shiftFrac;
+			vel = shiftDirection * shiftCur;
+			// vel.z *= 0.5; 
+			bInvulnerable = true;
+			A_ChangeLinkFlags(1, FLAG_NO_CHANGE);
+			int rpart = random(6, 12);
+			for (int i = 0; i < rpart; i++) {
+				A_SpawnParticle(0xFFFFFF, SPF_FULLBRIGHT|SPF_REPLACE, 16, random(8, 16), 0, frandom(-radius, radius), frandom(-radius, radius), frandom(0, height), 0, 0, 0, 0, 0, 0, 1, 0, -1);
+			}
+		} else if (shiftTimer == SHIFT_ACTIVE_TIMER + 1) {
+			bInvulnerable = false;
+			A_ChangeLinkFlags(0, FLAG_NO_CHANGE);
+		}
+		if (shouldResetShift) {
+			shiftTimer = SHIFT_TIMER + 1;
+			shouldResetShift = false;
+		}
+		if (shiftPrepareTimer) {
+			float fovMax = baseShiftFov * 1.1;
+			float fovMin = baseShiftFov;
+			float shiftFrac = float(shiftPrepareTimer) / (SHIFT_PREPARE_TIMER);
+			if (shiftFrac > 1) {
+				shiftFrac = 1;
+			}
+			float fovCur = fovMin * (1.0 - shiftFrac) + fovMax * shiftFrac;
+			player.SetFOV(fovCur);
+		}
+		shiftTimer++;
+		
+		player.vel = vel.xy;
+	}
+	
+	override void MovePlayer() {
+		if (bFlyCheat) {
+			Super.MovePlayer();
+			vel *= 0.5;
+			return;
+		}
+	
+		double realPitch = pitch;
+		vector3 realVel = vel;
+		vector2 realPlayerVel = player.vel;
+		pitch = 0;
+		Super.MovePlayer();
+		pitch = realPitch;
+		if (shiftTimer <= SHIFT_ACTIVE_TIMER) {
+			vel = realVel;
+			player.vel = realPlayerVel;
+		}
+		CustomMovePlayer();
+	}
+	
+	override void Tick() {
+		bNoGravity = true;
+	
+		if (shiftTimer > SHIFT_ACTIVE_TIMER) {
+			Super.Tick();
+			return;
+		}
+	
+		double prevAngle = angle;
+		double shiftAngle = atan2(shiftDirection.y, shiftDirection.x) - prevAngle;
+		double shiftPitch = -atan2(shiftDirection.z, (shiftDirection.x, shiftDirection.y).Length());
+		Super.Tick();
+		double newAngle = angle;
+		if (abs(newAngle-prevAngle) > 0.0001) {
+			shiftDirection = AnglesToVector((shiftDirection.Length(), 0, 0), newAngle + shiftAngle, shiftPitch);
+		}
+	}
+	
+	override void CheckMoveUpDown() {
+		if (bFlyCheat) {
+			Super.CheckMoveUpDown();
+		}
+	}
+	
+	override void CheckJump() {
+		if (bFlyCheat) {
+			Super.CheckJump();
+		}
+	}
+}

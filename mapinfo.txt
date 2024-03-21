@@ -1,0 +1,10 @@
+gameinfo
+{
+	playerclasses = "JPlayer"
+}
+
+doomednums
+{
+	16000 = EnergyRecharge
+	16001 = Fade
+}

@@ -1,0 +1,102 @@
+class FadeLevel : Actor {
+	default {
+		+FLATSPRITE;
+		+NOGRAVITY;
+		+NOINTERACTION;
+		RenderStyle 'Stencil';
+	}
+	
+	void TrueTick() {
+		Super.Tick();
+	}
+	
+	override void Tick() {}
+	
+	states {
+	Spawn:
+		FADE A 1 bright;
+		loop;
+	}
+}
+
+class Fade : Actor {
+	default {
+		+FLATSPRITE;
+		+NOGRAVITY;
+		+NOINTERACTION;
+		RenderStyle 'Stencil';
+		//$Arg0 Radius
+		//$Arg0Default 128
+		//$Arg0RenderStyle Rectangle
+		//$Arg1 Color
+		//$Arg1Default 16777215
+		//$Arg1Type 10
+		//$Arg2 Height
+		//$Arg2Default 32
+	}
+	
+	private Array<FadeLevel> layers;
+	
+	private double GetSize() {
+		double d = double(args[0]);
+		if (d == 0) {
+			return 0.001;
+		}
+		return d;
+	}
+	
+	private int GetColor() {
+		return args[1];
+	}
+	
+	private double GetHeight() {
+		return double(args[2]);
+	}
+	
+	override void PostBeginPlay() {
+		double scaleBase = GetSize() / 32;
+		scale = (scaleBase, scaleBase);
+		for (int i = 0; i < 16; i++) {
+			let layer = FadeLevel(Spawn('FadeLevel', pos));
+			layers.Push(layer);
+		}
+	}
+	
+	override void Tick() {
+		double size = GetSize() / 2;
+		
+		int sizeInBlocks = max(1, (size / 32));
+		int particleCount = max(1, sizeInBlocks*sizeInBlocks);
+		Quat dir = Quat.FromAngles(angle, pitch, roll);
+		
+		for (int i = 0; i < particleCount; i++) {		
+			vector2 planePos = (frandom(-size, size), frandom(-size, size));
+			
+			vector3 partPos = dir * (planePos.x, planePos.y, 0);
+			vector3 partVel = dir * (0, 0, GetHeight() / 32);
+			A_SpawnParticle(GetColor(), SPF_FULLBRIGHT, 35, 16, 0, partPos.x, partPos.y, partPos.z, partVel.x, partVel.y, partVel.z);
+		}
+		
+		SetShade(GetColor());
+		
+		double perLayer = GetHeight() / layers.Size();
+		for (int i = 0; i < layers.Size(); i++) {
+			let layer = layers[i];
+			layer.scale = scale;
+			layer.angle = angle;
+			layer.pitch = pitch;
+			layer.roll = roll;
+			layer.SetShade(GetColor());
+			layer.alpha = (1.0 - (double(i) / layers.Size())) / 3;
+			vector3 layerPos = dir * (0, 0, (i + 1) * perLayer);
+			layer.SetOrigin(pos + layerPos, false);
+			layer.TrueTick();
+		}
+	}
+	
+	states {
+	Spawn:
+		FADE A 1 bright;
+		loop;
+	}
+}
