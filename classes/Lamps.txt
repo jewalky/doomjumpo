@@ -1,0 +1,13 @@
+class WallLamp : Actor {
+  default {
+    +NOGRAVITY;
+    +NOINTERACTION;
+	Radius 32;
+  }
+
+  states {
+  Spawn:
+    TOLD A 1 BRIGHT;
+    loop;
+  }
+}

@@ -1,3 +1,4 @@
 #include "./classes/JPlayer.txt"
 #include "./classes/EnergyRecharge.txt"
 #include "./classes/Fade.txt"
+#include "./classes/Lamps.txt"

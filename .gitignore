@@ -1,3 +1,7 @@
 *.autosave*
 *.backup*
 *.dbs
+*~
+*.blend1
+*~000.*
+*~001.*

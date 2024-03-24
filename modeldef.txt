@@ -1,0 +1,10 @@
+model WallLamp {
+  path "models/WallLamp"
+  model 0 "WallLamp.iqm"
+  skin 0 "Texture.png"
+  Scale 28 28 28
+  AngleOffset -90
+  Offset -32 0 0
+  
+  frameindex TOLD A 0 0
+}

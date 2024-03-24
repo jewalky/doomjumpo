@@ -3,8 +3,14 @@ gameinfo
 	playerclasses = "JPlayer"
 }
 
+map MAP01 "MAP01" {
+	lightmode = 3
+	EvenLighting
+}
+
 doomednums
 {
 	16000 = EnergyRecharge
 	16001 = Fade
+	16002 = WallLamp
 }
