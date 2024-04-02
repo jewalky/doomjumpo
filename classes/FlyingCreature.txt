@@ -1,0 +1,21 @@
+class FlyingCreature : Actor {
+  default {
+    +NOGRAVITY;
+    +NOINTERACTION;
+	+RANDOMIZE;
+	Radius 16;
+  }
+
+  states {
+  Spawn:
+    TOLD A 25;
+	TOLD B 20;
+	TOLD C 15;
+	TOLD D 20;
+	TOLD E 25;
+	TOLD F 20;
+	TOLD G 15;
+	TOLD H 20;
+    loop;
+  }
+}

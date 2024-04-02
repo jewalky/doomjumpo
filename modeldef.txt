@@ -8,3 +8,21 @@ model WallLamp {
   
   frameindex TOLD A 0 0
 }
+
+model FlyingCreature {
+  path "models/FlyingCreature"
+  model 0 "FlyingCreature.iqm"
+  skin 0 "Texture.png"
+  AngleOffset 90
+  Scale 24 24 24
+  Offset 32 0 0
+  
+  frameindex TOLD A 0 0
+  frameindex TOLD B 0 5
+  frameindex TOLD C 0 10
+  frameindex TOLD D 0 15
+  frameindex TOLD E 0 20
+  frameindex TOLD F 0 25
+  frameindex TOLD G 0 30
+  frameindex TOLD H 0 35
+}

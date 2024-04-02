@@ -2,3 +2,4 @@
 #include "./classes/EnergyRecharge.txt"
 #include "./classes/Fade.txt"
 #include "./classes/Lamps.txt"
+#include "./classes/FlyingCreature.txt"
